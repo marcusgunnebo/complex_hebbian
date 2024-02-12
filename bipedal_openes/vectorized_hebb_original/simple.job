@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#SBATCH --job-name=hebbian           # Job name
+#SBATCH --output=job.%j.out         # Name of output file (%j expands to jobId)
+#SBATCH --cpus-per-task=256         # Schedule one core
+#SBATCH --mem=200G         
+#SBATCH --time=1-00:00:00             # Run time (hh:mm:ss) - run for one hour max
+#SBATCH --partition=brown           # Run on either the Red or Brown queue
+#SBATCH --mail-type=END,BEGIN,FAIL  # Send an email when the job finishes
+
+module load singularity
+singularity exec --nv /opt/itu/containers/pytorch/latest pip3 install swig
+singularity exec --nv /opt/itu/containers/pytorch/latest pip3 install pygame
+singularity exec --nv /opt/itu/containers/pytorch/latest pip3 install ufal.pybox2d
+singularity exec --nv /opt/itu/containers/pytorch/latest python3 main.py
