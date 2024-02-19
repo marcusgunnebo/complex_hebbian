@@ -40,13 +40,13 @@ if __name__ == "__main__":
         
         with open('log_'+str(run)+'.txt', 'a') as outfile:
             outfile.write('trainable parameters: ' + str(len(init_params))+'\n')
-
+        
         solver = OpenES(len(init_params), 
                         popsize=popsize,
                         rank_fitness=True,
                         antithetic=True,
-                        learning_rate=0.01,
-                        learning_rate_decay=0.9999,
+                        learning_rate=0.2,
+                        learning_rate_decay=0.995,
                         sigma_init=0.1,
                         sigma_decay=0.999,
                         learning_rate_limit=0.001,
