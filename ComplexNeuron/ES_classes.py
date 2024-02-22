@@ -18,18 +18,19 @@ def compute_centered_ranks(x):
     https://github.com/openai/evolution-strategies-starter/blob/master/es_distributed/es.py
     """
     y = compute_ranks(x.ravel()).reshape(x.shape).astype(np.float32)
-    y /= (x.size - 1)
-    y -= .5
+    y /= x.size - 1
+    y -= 0.5
     return y
 
 
 def compute_weight_decay(weight_decay, model_param_list):
     model_param_grid = np.array(model_param_list)
-    return - weight_decay * np.mean(model_param_grid * model_param_grid, axis=1)
+    return -weight_decay * np.mean(model_param_grid * model_param_grid, axis=1)
 
 
 # adopted from:
 # https://github.com/openai/evolution-strategies-starter/blob/master/es_distributed/optimizers.py
+
 
 class Optimizer(object):
     def __init__(self, pi, epsilon=1e-08):
@@ -67,7 +68,7 @@ class SGD(Optimizer):
         self.stepsize, self.momentum = stepsize, momentum
 
     def _compute_step(self, globalg):
-        self.v = self.momentum * self.v + (1. - self.momentum) * globalg
+        self.v = self.momentum * self.v + (1.0 - self.momentum) * globalg
         step = -self.stepsize * self.v
         return step
 
@@ -82,7 +83,7 @@ class Adam(Optimizer):
         self.v = np.zeros(self.dim, dtype=np.float32)
 
     def _compute_step(self, globalg):
-        a = self.stepsize * np.sqrt(1 - self.beta2 ** self.t) / (1 - self.beta1 ** self.t)
+        a = self.stepsize * np.sqrt(1 - self.beta2**self.t) / (1 - self.beta1**self.t)
         self.m = self.beta1 * self.m + (1 - self.beta1) * globalg
         self.v = self.beta2 * self.v + (1 - self.beta2) * (globalg * globalg)
         step = -a * self.m / (np.sqrt(self.v) + self.epsilon)
@@ -90,12 +91,15 @@ class Adam(Optimizer):
 
 
 class CMAES:
-    '''CMA-ES wrapper.'''
+    """CMA-ES wrapper."""
 
-    def __init__(self, coeffs,  # number of model parameters
-                 sigma_init=0.10,  # initial standard deviation
-                 popsize=255,  # population size
-                 weight_decay=0.0):  # weight decay coefficient
+    def __init__(
+        self,
+        coeffs,  # number of model parameters
+        sigma_init=0.10,  # initial standard deviation
+        popsize=255,  # population size
+        weight_decay=0.0,
+    ):  # weight decay coefficient
         self.coeffs = coeffs
         # self.num_params = num_params
         self.sigma_init = sigma_init
@@ -104,17 +108,21 @@ class CMAES:
         self.solutions = None
 
         import cma
-        self.es = cma.CMAEvolutionStrategy(self.coeffs,
-                                           self.sigma_init,
-                                           {'popsize': self.popsize,
-                                            })
+
+        self.es = cma.CMAEvolutionStrategy(
+            self.coeffs,
+            self.sigma_init,
+            {
+                "popsize": self.popsize,
+            },
+        )
 
     def rms_stdev(self):
         sigma = self.es.result[6]
         return np.mean(np.sqrt(sigma * sigma))
 
     def ask(self):
-        '''returns a list of parameters'''
+        """returns a list of parameters"""
         self.solutions = np.array(self.es.ask())
         return self.solutions
 
@@ -123,7 +131,9 @@ class CMAES:
         # if self.weight_decay > 0:
         #  l2_decay = compute_weight_decay(self.weight_decay, self.solutions)
         #  reward_table += l2_decay
-        self.es.tell(self.solutions, (reward_table).tolist())  # convert minimizer to maximizer.
+        self.es.tell(
+            self.solutions, (reward_table).tolist()
+        )  # convert minimizer to maximizer.
 
     def current_param(self):
         return self.es.result[5]  # mean solution, presumably better with noise
@@ -134,24 +144,29 @@ class CMAES:
     def best_param(self):
         return self.es.result[0]  # best evaluated solution
 
-    def result(self):  # return best params so far, along with historically best reward, curr reward, sigma
+    def result(
+        self,
+    ):  # return best params so far, along with historically best reward, curr reward, sigma
         r = self.es.result
         return (r[0], -r[1], -r[1], r[6])
 
-class SimpleGA2:
-    '''Simple Genetic Algorithm.'''
 
-    def __init__(self, num_params,  # number of model parameters
-                 #init_params,
-                 init_pop,
-                 sigma_init=0.1,  # initial standard deviation
-                 sigma_decay=0.999,  # anneal standard deviation
-                 sigma_limit=0.01,  # stop annealing if less than this
-                 popsize=256,  # population size
-                 elite_ratio=0.1,  # percentage of the elites
-                 forget_best=False,  # forget the historical best elites
-                 weight_decay=0,  # weight decay coefficient
-                 ):
+class SimpleGA2:
+    """Simple Genetic Algorithm."""
+
+    def __init__(
+        self,
+        num_params,  # number of model parameters
+        # init_params,
+        init_pop,
+        sigma_init=0.1,  # initial standard deviation
+        sigma_decay=0.999,  # anneal standard deviation
+        sigma_limit=0.01,  # stop annealing if less than this
+        popsize=256,  # population size
+        elite_ratio=0.1,  # percentage of the elites
+        forget_best=False,  # forget the historical best elites
+        weight_decay=0,  # weight decay coefficient
+    ):
 
         self.num_params = num_params
         self.sigma_init = sigma_init
@@ -163,8 +178,8 @@ class SimpleGA2:
         self.elite_popsize = int(self.popsize * self.elite_ratio)
 
         self.sigma = self.sigma_init
-        #self.elite_params = np.zeros((self.elite_popsize, self.num_params))
-        #self.elite_params = np.array([init_params for i in range(self.elite_popsize)])
+        # self.elite_params = np.zeros((self.elite_popsize, self.num_params))
+        # self.elite_params = np.array([init_params for i in range(self.elite_popsize)])
         self.elite_params = np.array(init_pop)
 
         self.elite_rewards = np.zeros(self.elite_popsize)
@@ -178,7 +193,7 @@ class SimpleGA2:
         return self.sigma  # same sigma for all parameters.
 
     def ask(self):
-        '''returns a list of parameters'''
+        """returns a list of parameters"""
         self.epsilon = np.random.randn(self.popsize, self.num_params) * self.sigma
         solutions = []
 
@@ -202,7 +217,9 @@ class SimpleGA2:
 
     def tell(self, reward_table_result):
         # input must be a numpy float array
-        assert (len(reward_table_result) == self.popsize), "Inconsistent reward_table size reported."
+        assert (
+            len(reward_table_result) == self.popsize
+        ), "Inconsistent reward_table size reported."
 
         reward_table = np.array(reward_table_result)
 
@@ -217,7 +234,7 @@ class SimpleGA2:
             reward = np.concatenate([reward_table, self.elite_rewards])
             solution = np.concatenate([self.solutions, self.elite_params])
 
-        idx = np.argsort(reward)[::-1][0:self.elite_popsize]
+        idx = np.argsort(reward)[::-1][0 : self.elite_popsize]
 
         self.elite_rewards = reward[idx]
         self.elite_params = solution[idx]
@@ -229,7 +246,7 @@ class SimpleGA2:
             self.best_reward = self.elite_rewards[0]
             self.best_param = np.copy(self.elite_params[0])
 
-        if (self.sigma > self.sigma_limit):
+        if self.sigma > self.sigma_limit:
             self.sigma *= self.sigma_decay
 
     def current_param(self):
@@ -240,22 +257,27 @@ class SimpleGA2:
 
     def best_param(self):
         return self.best_param
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-    def result(self):  # return best params so far, along with historically best reward, curr reward, sigma                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-        return (self.best_param, self.best_reward, self.curr_best_reward, self.sigma)       
+
+    def result(
+        self,
+    ):  # return best params so far, along with historically best reward, curr reward, sigma
+        return (self.best_param, self.best_reward, self.curr_best_reward, self.sigma)
+
 
 class SimpleGA:
-    '''Simple Genetic Algorithm.'''
+    """Simple Genetic Algorithm."""
 
-    def __init__(self, num_params,  # number of model parameters
-                 sigma_init=0.1,  # initial standard deviation
-                 sigma_decay=0.999,  # anneal standard deviation
-                 sigma_limit=0.01,  # stop annealing if less than this
-                 popsize=256,  # population size
-                 elite_ratio=0.1,  # percentage of the elites
-                 forget_best=False,  # forget the historical best elites
-                 weight_decay=0.01,  # weight decay coefficient
-                 ):
+    def __init__(
+        self,
+        num_params,  # number of model parameters
+        sigma_init=0.1,  # initial standard deviation
+        sigma_decay=0.999,  # anneal standard deviation
+        sigma_limit=0.01,  # stop annealing if less than this
+        popsize=256,  # population size
+        elite_ratio=0.1,  # percentage of the elites
+        forget_best=False,  # forget the historical best elites
+        weight_decay=0.01,  # weight decay coefficient
+    ):
 
         self.num_params = num_params
         self.sigma_init = sigma_init
@@ -279,7 +301,7 @@ class SimpleGA:
         return self.sigma  # same sigma for all parameters.
 
     def ask(self):
-        '''returns a list of parameters'''
+        """returns a list of parameters"""
         self.epsilon = np.random.randn(self.popsize, self.num_params) * self.sigma
         solutions = []
 
@@ -296,15 +318,16 @@ class SimpleGA:
             child_params = mate(self.elite_params[idx_a], self.elite_params[idx_b])
             solutions.append(child_params + self.epsilon[i])
 
-        solutions = np.nan_to_num(np.array(solutions), 1,-1)
+        solutions = np.nan_to_num(np.array(solutions), 1, -1)
         self.solutions = solutions
-        
 
         return solutions
 
     def tell(self, reward_table_result):
         # input must be a numpy float array
-        assert (len(reward_table_result) == self.popsize), "Inconsistent reward_table size reported."
+        assert (
+            len(reward_table_result) == self.popsize
+        ), "Inconsistent reward_table size reported."
 
         reward_table = np.array(reward_table_result)
 
@@ -319,7 +342,7 @@ class SimpleGA:
             reward = np.concatenate([reward_table, self.elite_rewards])
             solution = np.concatenate([self.solutions, self.elite_params])
 
-        idx = np.argsort(reward)[::-1][0:self.elite_popsize]
+        idx = np.argsort(reward)[::-1][0 : self.elite_popsize]
 
         self.elite_rewards = reward[idx]
         self.elite_params = solution[idx]
@@ -331,7 +354,7 @@ class SimpleGA:
             self.best_reward = self.elite_rewards[0]
             self.best_param = np.copy(self.elite_params[0])
 
-        if (self.sigma > self.sigma_limit):
+        if self.sigma > self.sigma_limit:
             self.sigma *= self.sigma_decay
 
     def current_param(self):
@@ -343,25 +366,30 @@ class SimpleGA:
     def best_param(self):
         return self.best_param
 
-    def result(self):  # return best params so far, along with historically best reward, curr reward, sigma
+    def result(
+        self,
+    ):  # return best params so far, along with historically best reward, curr reward, sigma
         return (self.best_param, self.best_reward, self.curr_best_reward, self.sigma)
 
 
 class OpenES:
-    ''' Basic Version of OpenAI Evolution Strategies.'''
+    """Basic Version of OpenAI Evolution Strategies."""
 
-    def __init__(self, num_params,  # number of model parameters
-                 sigma_init=0.1,  # initial standard deviation
-                 sigma_decay=0.999,  # anneal standard deviation
-                 sigma_limit=0.01,  # stop annealing if less than this
-                 learning_rate=0.01,  # learning rate for standard deviation
-                 learning_rate_decay=0.9999,  # annealing the learning rate
-                 learning_rate_limit=0.001,  # stop annealing learning rate
-                 popsize=256,  # population size
-                 antithetic=True,  # whether to use antithetic sampling
-                 weight_decay=0.00,  # weight decay coefficient
-                 rank_fitness=True,  # use rank rather than fitness numbers
-                 forget_best=True):  # forget historical best
+    def __init__(
+        self,
+        num_params,  # number of model parameters
+        sigma_init=0.1,  # initial standard deviation
+        sigma_decay=0.999,  # anneal standard deviation
+        sigma_limit=0.01,  # stop annealing if less than this
+        learning_rate=0.01,  # learning rate for standard deviation
+        learning_rate_decay=0.9999,  # annealing the learning rate
+        learning_rate_limit=0.001,  # stop annealing learning rate
+        popsize=256,  # population size
+        antithetic=True,  # whether to use antithetic sampling
+        weight_decay=0.00,  # weight decay coefficient
+        rank_fitness=True,  # use rank rather than fitness numbers
+        forget_best=True,
+    ):  # forget historical best
 
         self.num_params = num_params
         self.sigma_decay = sigma_decay
@@ -374,7 +402,7 @@ class OpenES:
         self.popsize = popsize
         self.antithetic = antithetic
         if self.antithetic:
-            assert (self.popsize % 2 == 0), "Population size must be even"
+            assert self.popsize % 2 == 0, "Population size must be even"
             self.half_popsize = int(self.popsize / 2)
 
         self.reward = np.zeros(self.popsize)
@@ -395,29 +423,31 @@ class OpenES:
         return np.mean(np.sqrt(sigma * sigma))
 
     def ask(self):
-        '''returns a list of parameters'''
+        """returns a list of parameters"""
         # antithetic sampling
         if self.antithetic:
             self.epsilon_half = np.random.randn(self.half_popsize, self.num_params)
-            self.epsilon = np.concatenate([self.epsilon_half, - self.epsilon_half])
+            self.epsilon = np.concatenate([self.epsilon_half, -self.epsilon_half])
         else:
             self.epsilon = np.random.randn(self.popsize, self.num_params)
 
         self.solutions = self.mu.reshape(1, self.num_params) + self.epsilon * self.sigma
 
         if np.isnan(np.sum(self.solutions)):
-            print('NAN found in solutions in ask()')
-            print('is self.sigma bad?', np.isnan(self.sigma))
-            print('NAN in mu?', np.isnan(np.sum(self.mu)))
+            print("NAN found in solutions in ask()")
+            print("is self.sigma bad?", np.isnan(self.sigma))
+            print("NAN in mu?", np.isnan(np.sum(self.mu)))
 
         if np.isnan(np.sum(self.epsilon)):
-            print('something is NAN in self.epsilon')
+            print("something is NAN in self.epsilon")
 
         return self.solutions
 
     def tell(self, reward_table_result):
         # input must be a numpy float array
-        assert (len(reward_table_result) == self.popsize), "Inconsistent reward_table size reported."
+        assert (
+            len(reward_table_result) == self.popsize
+        ), "Inconsistent reward_table size reported."
         self.reward = np.array(reward_table_result)
         reward = np.array(reward_table_result)
 
@@ -449,18 +479,22 @@ class OpenES:
         # standardize the rewards to have a gaussian distribution
 
         std = np.std(reward)
-        '''
+        """
         if np.isnan(std):
             print('std of reward has become nan')
             std = 1
         elif std == 0:
             print('std of reward == 0')
             std = 1e-7
-        '''
+        """
 
         normalized_reward = (reward - np.mean(reward)) / std  # np.std(reward)
 
-        change_mu = 1. / (self.popsize * self.sigma) * np.dot(self.epsilon.T, normalized_reward)
+        change_mu = (
+            1.0
+            / (self.popsize * self.sigma)
+            * np.dot(self.epsilon.T, normalized_reward)
+        )
 
         # self.mu += self.learning_rate * change_mu
 
@@ -468,10 +502,10 @@ class OpenES:
         update_ratio = self.optimizer.update(-change_mu)
 
         # adjust sigma according to the adaptive sigma calculation
-        if (self.sigma > self.sigma_limit):
+        if self.sigma > self.sigma_limit:
             self.sigma *= self.sigma_decay
 
-        if (self.learning_rate > self.learning_rate_limit):
+        if self.learning_rate > self.learning_rate_limit:
             self.learning_rate *= self.learning_rate_decay
 
     def current_param(self):
@@ -483,28 +517,33 @@ class OpenES:
     def best_param(self):
         return self.best_mu
 
-    def result(self):  # return best params so far, along with historically best reward, curr reward, sigma
+    def result(
+        self,
+    ):  # return best params so far, along with historically best reward, curr reward, sigma
         return (self.best_mu, self.best_reward, self.curr_best_reward, self.sigma)
 
 
 class PEPG:
-    '''Extension of PEPG with bells and whistles.'''
+    """Extension of PEPG with bells and whistles."""
 
-    def __init__(self, num_params,  # number of model parameters
-                 sigma_init=0.10,  # initial standard deviation
-                 sigma_alpha=0.20,  # learning rate for standard deviation
-                 sigma_decay=0.999,  # anneal standard deviation
-                 sigma_limit=0.01,  # stop annealing if less than this
-                 sigma_max_change=0.2,  # clips adaptive sigma to 20%
-                 learning_rate=0.01,  # learning rate for standard deviation
-                 learning_rate_decay=0.9999,  # annealing the learning rate
-                 learning_rate_limit=0.01,  # stop annealing learning rate
-                 elite_ratio=0,  # if > 0, then ignore learning_rate
-                 popsize=256,  # population size
-                 average_baseline=True,  # set baseline to average of batch
-                 weight_decay=0.01,  # weight decay coefficient
-                 rank_fitness=True,  # use rank rather than fitness numbers
-                 forget_best=True):  # don't keep the historical best solution
+    def __init__(
+        self,
+        num_params,  # number of model parameters
+        sigma_init=0.10,  # initial standard deviation
+        sigma_alpha=0.20,  # learning rate for standard deviation
+        sigma_decay=0.999,  # anneal standard deviation
+        sigma_limit=0.01,  # stop annealing if less than this
+        sigma_max_change=0.2,  # clips adaptive sigma to 20%
+        learning_rate=0.01,  # learning rate for standard deviation
+        learning_rate_decay=0.9999,  # annealing the learning rate
+        learning_rate_limit=0.01,  # stop annealing learning rate
+        elite_ratio=0,  # if > 0, then ignore learning_rate
+        popsize=256,  # population size
+        average_baseline=True,  # set baseline to average of batch
+        weight_decay=0.01,  # weight decay coefficient
+        rank_fitness=True,  # use rank rather than fitness numbers
+        forget_best=True,
+    ):  # don't keep the historical best solution
 
         self.num_params = num_params
         self.sigma_init = sigma_init
@@ -518,10 +557,10 @@ class PEPG:
         self.popsize = popsize
         self.average_baseline = average_baseline
         if self.average_baseline:
-            assert (self.popsize % 2 == 0), "Population size must be even"
+            assert self.popsize % 2 == 0, "Population size must be even"
             self.batch_size = int(self.popsize / 2)
         else:
-            assert (self.popsize & 1), "Population size must be odd"
+            assert self.popsize & 1, "Population size must be odd"
             self.batch_size = int((self.popsize - 1) / 2)
 
         # option to use greedy es method to select next mu, rather than using drift param
@@ -551,22 +590,28 @@ class PEPG:
         return np.mean(np.sqrt(sigma * sigma))
 
     def ask(self):
-        '''returns a list of parameters'''
+        """returns a list of parameters"""
         # antithetic sampling
-        self.epsilon = np.random.randn(self.batch_size, self.num_params) * self.sigma.reshape(1, self.num_params)
-        self.epsilon_full = np.concatenate([self.epsilon, - self.epsilon])
+        self.epsilon = np.random.randn(
+            self.batch_size, self.num_params
+        ) * self.sigma.reshape(1, self.num_params)
+        self.epsilon_full = np.concatenate([self.epsilon, -self.epsilon])
         if self.average_baseline:
             epsilon = self.epsilon_full
         else:
             # first population is mu, then positive epsilon, then negative epsilon
-            epsilon = np.concatenate([np.zeros((1, self.num_params)), self.epsilon_full])
+            epsilon = np.concatenate(
+                [np.zeros((1, self.num_params)), self.epsilon_full]
+            )
         solutions = self.mu.reshape(1, self.num_params) + epsilon
         self.solutions = solutions
         return solutions
 
     def tell(self, reward_table_result):
         # input must be a numpy float array
-        assert (len(reward_table_result) == self.popsize), "Inconsistent reward_table size reported."
+        assert (
+            len(reward_table_result) == self.popsize
+        ), "Inconsistent reward_table size reported."
 
         reward_table = np.array(reward_table_result)
 
@@ -586,12 +631,12 @@ class PEPG:
 
         reward = reward_table[reward_offset:]
         if self.use_elite:
-            idx = np.argsort(reward)[::-1][0:self.elite_popsize]
+            idx = np.argsort(reward)[::-1][0 : self.elite_popsize]
         else:
             idx = np.argsort(reward)[::-1]
 
         best_reward = reward[idx[0]]
-        if (best_reward > b or self.average_baseline):
+        if best_reward > b or self.average_baseline:
             best_mu = self.mu + self.epsilon_full[idx[0]]
             best_reward = reward[idx[0]]
         else:
@@ -621,20 +666,24 @@ class PEPG:
         if self.use_elite:
             self.mu += self.epsilon_full[idx].mean(axis=0)
         else:
-            rT = (reward[:self.batch_size] - reward[self.batch_size:])
+            rT = reward[: self.batch_size] - reward[self.batch_size :]
             change_mu = np.dot(rT, epsilon)
             self.optimizer.stepsize = self.learning_rate
-            update_ratio = self.optimizer.update(-change_mu)  # adam, rmsprop, momentum, etc.
+            update_ratio = self.optimizer.update(
+                -change_mu
+            )  # adam, rmsprop, momentum, etc.
             # self.mu += (change_mu * self.learning_rate) # normal SGD method
 
         # adaptive sigma
         # normalization
-        if (self.sigma_alpha > 0):
+        if self.sigma_alpha > 0:
             stdev_reward = 1.0
             if not self.rank_fitness:
                 stdev_reward = reward.std()
-            S = ((epsilon * epsilon - (sigma * sigma).reshape(1, self.num_params)) / sigma.reshape(1, self.num_params))
-            reward_avg = (reward[:self.batch_size] + reward[self.batch_size:]) / 2.0
+            S = (
+                epsilon * epsilon - (sigma * sigma).reshape(1, self.num_params)
+            ) / sigma.reshape(1, self.num_params)
+            reward_avg = (reward[: self.batch_size] + reward[self.batch_size :]) / 2.0
             rS = reward_avg - b
             delta_sigma = (np.dot(rS, S)) / (2 * self.batch_size * stdev_reward)
 
@@ -642,13 +691,16 @@ class PEPG:
             # for stability, don't let sigma move more than 10% of orig value
             change_sigma = self.sigma_alpha * delta_sigma
             change_sigma = np.minimum(change_sigma, self.sigma_max_change * self.sigma)
-            change_sigma = np.maximum(change_sigma, - self.sigma_max_change * self.sigma)
+            change_sigma = np.maximum(change_sigma, -self.sigma_max_change * self.sigma)
             self.sigma += change_sigma
 
-        if (self.sigma_decay < 1):
+        if self.sigma_decay < 1:
             self.sigma[self.sigma > self.sigma_limit] *= self.sigma_decay
 
-        if (self.learning_rate_decay < 1 and self.learning_rate > self.learning_rate_limit):
+        if (
+            self.learning_rate_decay < 1
+            and self.learning_rate > self.learning_rate_limit
+        ):
             self.learning_rate *= self.learning_rate_decay
 
     def current_param(self):
@@ -660,6 +712,7 @@ class PEPG:
     def best_param(self):
         return self.best_mu
 
-
-    def result(self):  # return best params so far, along with historically best reward, curr reward, sigma
+    def result(
+        self,
+    ):  # return best params so far, along with historically best reward, curr reward, sigma
         return (self.best_mu, self.best_reward, self.curr_best_reward, self.sigma)
