@@ -6,6 +6,8 @@ import numpy as np
 from ES_classes import OpenES
 from hebbian_neural_net import HebbianNet
 from rollout import fitness
+import torch
+torch.set_num_threads(1)
 
 ENV_NAME = 'BipedalWalker-v3'
 
@@ -45,8 +47,8 @@ if __name__ == "__main__":
                         popsize=popsize,
                         rank_fitness=True,
                         antithetic=True,
-                        learning_rate=0.2,
-                        learning_rate_decay=0.995,
+                        learning_rate=0.01,
+                        learning_rate_decay=0.9999,
                         sigma_init=0.1,
                         sigma_decay=0.999,
                         learning_rate_limit=0.001,

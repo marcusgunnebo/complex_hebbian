@@ -4,7 +4,7 @@ import pickle
 import gymnasium as gym
 import numpy as np
 from ES_classes import OpenES
-from hebbian_neural_net import HebbianNet
+from neural_diversity_net import NeuralDiverseNet
 from rollout import fitness
 
 ENV_NAME = 'BipedalWalker-v3'
@@ -22,7 +22,7 @@ cpus = 256
 def worker_fn(params):
     mean = 0
     for epi in range(TASK_PER_IND):
-        net = HebbianNet(ARCHITECTURE)
+        net = NeuralDiverseNet(ARCHITECTURE)
         net.set_params(params)
         mean += fitness(net, ENV_NAME)
     return mean/TASK_PER_IND
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     runs = [ '1_']
     for run in runs:
 
-        init_net = HebbianNet(ARCHITECTURE)
+        init_net = NeuralDiverseNet(ARCHITECTURE)
 
         init_params = init_net.get_params()
 
@@ -40,13 +40,13 @@ if __name__ == "__main__":
         
         with open('log_'+str(run)+'.txt', 'a') as outfile:
             outfile.write('trainable parameters: ' + str(len(init_params))+'\n')
-        
+
         solver = OpenES(len(init_params), 
                         popsize=popsize,
                         rank_fitness=True,
                         antithetic=True,
-                        learning_rate=0.2,
-                        learning_rate_decay=0.995,
+                        learning_rate=0.01,
+                        learning_rate_decay=0.9999,
                         sigma_init=0.1,
                         sigma_decay=0.999,
                         learning_rate_limit=0.001,

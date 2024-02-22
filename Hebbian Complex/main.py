@@ -4,8 +4,10 @@ import pickle
 import gymnasium as gym
 import numpy as np
 from ES_classes import OpenES
-from neural_diversity_net import NeuralDiverseNet
+from hebbian_neural_net import HebbianNet
 from rollout import fitness
+import torch
+torch.set_num_threads(1)
 
 ENV_NAME = 'BipedalWalker-v3'
 
@@ -22,7 +24,7 @@ cpus = 256
 def worker_fn(params):
     mean = 0
     for epi in range(TASK_PER_IND):
-        net = NeuralDiverseNet(ARCHITECTURE)
+        net = HebbianNet(ARCHITECTURE)
         net.set_params(params)
         mean += fitness(net, ENV_NAME)
     return mean/TASK_PER_IND
@@ -32,7 +34,7 @@ if __name__ == "__main__":
     runs = [ '1_']
     for run in runs:
 
-        init_net = NeuralDiverseNet(ARCHITECTURE)
+        init_net = HebbianNet(ARCHITECTURE)
 
         init_params = init_net.get_params()
 
@@ -45,8 +47,8 @@ if __name__ == "__main__":
                         popsize=popsize,
                         rank_fitness=True,
                         antithetic=True,
-                        learning_rate=0.2,
-                        learning_rate_decay=0.995,
+                        learning_rate=0.01,
+                        learning_rate_decay=0.9999,
                         sigma_init=0.1,
                         sigma_decay=0.999,
                         learning_rate_limit=0.001,
@@ -90,7 +92,7 @@ if __name__ == "__main__":
                             + ' std.: '  +str(np.std(evaluations)) + '\n')
                 eval_curve[epoch] = np.mean(evaluations)
 
-            if (epoch + 1) % (EPOCHS - 1) == 0:
+            if (epoch % 100 == 0):
                 print('saving..')
                 pickle.dump((
                             solver,
@@ -98,4 +100,4 @@ if __name__ == "__main__":
                             pop_mean_curve,
                             best_sol_curve,
                             eval_curve
-                            ), open(str(run)+'_' + str(len(init_params)) + '_' + str(epoch) + '_' + str(pop_mean_curve[epoch]) + '.pickle', 'wb'))
+                            ), open("48" + '.pickle', 'wb'))

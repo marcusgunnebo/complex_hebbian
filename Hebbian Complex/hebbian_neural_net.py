@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+torch.set_num_threads(1)
 
 def WeightStand(w, eps=1e-5):
     mean = torch.mean(input=w, dim=[0,1], keepdim=True)

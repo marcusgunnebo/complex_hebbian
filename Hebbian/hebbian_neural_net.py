@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+torch.set_num_threads(1)
 
 def WeightStand(w, eps=1e-5):
 
